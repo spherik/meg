@@ -2,6 +2,7 @@
 ## #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+
 from traits.api import Instance
 from traitsui.qt4.editor import Editor
 from traitsui.qt4.basic_editor_factory import BasicEditorFactory
@@ -53,8 +54,8 @@ class MEGVisualizator(HasTraits):
     mpl_figure = Instance(Figure, ())
     n = Int(11)
     a = Float(0.5)
-    selected_time = Range(0,100,50)
-    selected_correl = Range(0,100,0)
+    selected_time = Range(0,1.)
+    selected_correl = Range(0,1.)
 
     # The first engine. As default arguments (an empty tuple) are given,
     # traits initializes it.
@@ -100,7 +101,7 @@ class MEGVisualizator(HasTraits):
         n = self.virtual_sensors_signals
 
         len_signals = self.virtual_sensors_signals.shape[1]-1
-        time_index = int(len_signals*self.selected_time/100.0)
+        time_index = int(len_signals*self.selected_time)
 
         self.axes = self.mpl_figure.add_subplot(111)
         self.axes.plot(self.virtual_sensors_signals+ 80*np.arange(self.virtual_sensors_signals.shape[1]-1,-1,-1))
@@ -132,12 +133,12 @@ class MEGVisualizator(HasTraits):
     def update_selected_correlation(self):
         print('update_selected_correlation')
         # Get correlation value
-        selected_correl_value = self.correl.min()+(self.correl.max()-self.correl.min())*(self.selected_correl/100.0)
+        selected_correl_value = self.correl.min()+(self.correl.max()-self.correl.min())*(self.selected_correl)
         selected_ids = np.ravel_multi_index(np.where(self.correl>selected_correl_value), self.correl.shape)
 
         # Get time value
         len_signals = self.virtual_sensors_signals.shape[1]-1
-        time_index = int(len_signals*self.selected_time/100.0)
+        time_index = int(len_signals*self.selected_time)
 
         #
         selected_positions = self.virtual_sensor_positions[selected_ids,:]
@@ -167,12 +168,12 @@ class MEGVisualizator(HasTraits):
         print('update_selected_time')
         # Update signal plot
         # Get correlation value
-        selected_correl_value = self.correl.min()+(self.correl.max()-self.correl.min())*(self.selected_correl/100.0)
+        selected_correl_value = self.correl.min()+(self.correl.max()-self.correl.min())*(self.selected_correl)
         selected_ids = np.ravel_multi_index(np.where(self.correl>selected_correl_value), self.correl.shape)
 
         # Get time value
         len_signals = self.virtual_sensors_signals.shape[1]-1
-        time_index = int(len_signals*self.selected_time/100.0)
+        time_index = int(len_signals*self.selected_time)
 
         #
         selected_signals = self.virtual_sensors_signals[:,selected_ids]
