@@ -88,6 +88,15 @@ class MainWindow(QtGui.QMainWindow):
             self._BuildScene()
             self._BuildPlot()
 
+            self.head_visual_action.setEnabled(True)
+            self.cortex_visual_action.setEnabled(True)
+            self.dipole_visual_action.setEnabled(True)
+
+            self.correl_slider.setEnabled(True)
+            self.correl_text.setEnabled(True)
+            self.time_slider.setEnabled(True)
+            self.time_text.setEnabled(True)
+
             # print(self.time.shape)
 
     def _BuildLayout(self):
@@ -121,19 +130,23 @@ class MainWindow(QtGui.QMainWindow):
         self.time_slider.setOrientation(QtCore.Qt.Horizontal)
         self.time_slider.setRange(0,1000)
         self.time_slider.setValue(0)
+        self.time_slider.setEnabled(False)
 
         self.time_text = QtGui.QLineEdit()
         self.time_text.setText('0')
         self.time_text.editingFinished.connect(self._TimeTextChanged)
+        self.time_text.setEnabled(False)
 
         self.correl_slider = QtGui.QSlider(self)
         self.correl_slider.setOrientation(QtCore.Qt.Horizontal)
         self.correl_slider.setRange(0,1000)
         self.correl_slider.setValue(0)
+        self.correl_slider.setEnabled(False)
 
         self.correl_text = QtGui.QLineEdit()
         self.correl_text.setText('0')
         self.correl_text.editingFinished.connect(self._CorrelTextChanged)
+        self.correl_text.setEnabled(False)
 
         controls_layout = QtGui.QGridLayout(container)
         controls_layout.addWidget(self.time_slider,0,0)
@@ -141,8 +154,11 @@ class MainWindow(QtGui.QMainWindow):
         controls_layout.addWidget(self.correl_slider, 1,0)
         controls_layout.addWidget(self.correl_text,1,1)
         layout.addLayout(controls_layout)
-
+        controls_layout.activate()
+        self.correl_text.resize(self.correl_text.sizeHint())
+        self.time_text.resize(self.time_text.sizeHint())
         #layout.addWidget(mayavi_widget, 1, 1)
+
         container.show()
         self.setCentralWidget(container)
 
@@ -159,20 +175,23 @@ class MainWindow(QtGui.QMainWindow):
         # Visualization menuBar
         visualization_menu = bar.addMenu('Visualization')
 
-        head_visual_action = QtGui.QAction('Head', self, triggered = self._ToggleHeadVisibility)
-        head_visual_action.setCheckable(True)
-        head_visual_action.setChecked(True)
-        visualization_menu.addAction(head_visual_action)
+        self.head_visual_action = QtGui.QAction('Head', self, triggered = self._ToggleHeadVisibility)
+        self.head_visual_action.setCheckable(True)
+        self.head_visual_action.setChecked(True)
+        self.head_visual_action.setEnabled(False)
+        visualization_menu.addAction(self.head_visual_action)
 
-        cortex_visual_action = QtGui.QAction('Cortex', self, triggered = self._ToggleCortexVisibility)
-        cortex_visual_action.setCheckable(True)
-        cortex_visual_action.setChecked(True)
-        visualization_menu.addAction(cortex_visual_action)
+        self.cortex_visual_action = QtGui.QAction('Cortex', self, triggered = self._ToggleCortexVisibility)
+        self.cortex_visual_action.setCheckable(True)
+        self.cortex_visual_action.setChecked(True)
+        self.cortex_visual_action.setEnabled(False)
+        visualization_menu.addAction(self.cortex_visual_action)
 
-        dipole_visual_action = QtGui.QAction('Dipole',self, triggered = self._ToggleDipoleVisibility)
-        dipole_visual_action.setCheckable(True)
-        dipole_visual_action.setChecked(True)
-        visualization_menu.addAction(dipole_visual_action)
+        self.dipole_visual_action = QtGui.QAction('Dipole',self, triggered = self._ToggleDipoleVisibility)
+        self.dipole_visual_action.setCheckable(True)
+        self.dipole_visual_action.setChecked(True)
+        self.dipole_visual_action.setEnabled(False)
+        visualization_menu.addAction(self.dipole_visual_action)
 
     def _BuildScene(self):
         selected_correl_value = self.correl.min()
