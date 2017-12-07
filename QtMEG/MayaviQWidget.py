@@ -45,7 +45,7 @@ class Visualization(HasTraits):
     #     self.scene.mlab.test_points3d()
 
     # the layout of the dialog screated
-    view = View(Item('scene', editor=SceneEditor(scene_class=MayaviScene), # Scene
+    view = View(Item('scene', editor=SceneEditor(scene_class=MayaviScene), # MayaviScene
                      show_label=False),
                 resizable=True # We need this to resize with the parent widget
                 )
@@ -72,6 +72,7 @@ class MayaviQWidget(QtGui.QWidget):
         layout.addWidget(self.ui)
         self.ui.setParent(self)
 
+
     def SetPoints(self,x = None, y = None, z = None, scalars = None):
         #self.visualization.scene.clf()
         if not hasattr(self, 'virtual_sensors_3D'):
@@ -86,7 +87,7 @@ class MayaviQWidget(QtGui.QWidget):
             self.virtual_sensors_3D.mlab_source.set(x = x, y = y,z = z,scalars = scalars)
             self.visualization.scene.disable_render = False
 
-
+        self.axis = self.visualization.scene.mlab.orientation_axes(self.virtual_sensors_3D)
 
     def SetScalarsRange(self, min_value = 0.0, max_value = 1.0):
         # Setup lut
@@ -136,7 +137,7 @@ class MayaviQWidget(QtGui.QWidget):
         self.dipole_momentum_arrow.glyph.glyph_source.glyph_source = self.dipole_momentum_arrow.glyph.glyph_source.glyph_dict['arrow_source']
         self.dipole_momentum_arrow.glyph.glyph.scale_factor = 0.04
         self.visualization.scene.reset_zoom()
-        
+
     def ToggleDipoleVisibility(self, is_visible):
         self.dipole_momentum_sphere.actor.visible = is_visible
         self.dipole_momentum_arrow.actor.visible = is_visible
