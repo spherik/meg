@@ -1,4 +1,12 @@
 #!/Users/spherik/anaconda3/envs/mayavi_env/bin/python
+
+# Mostrar dipSignal a part (mes amunt)
+# Checkbox normalitzar senyals x = x-min/max-min
+# menu toogle visualize per ocultar dipol - done
+# mostrar correl_slider i time_slider
+# Veure el num de dipols mostrats (despres de filtrar per correlacio)
+
+
 # First, and before importing any Enthought packages, set the ETS_TOOLKIT
 # environment variable to qt4, to tell Traits that we will use Qt.
 import os
@@ -15,127 +23,17 @@ from pyface.qt import QtGui, QtCore
 #   import sip
 #   sip.setapi('QString', 2)
 
-from traits.api import HasTraits, Instance, on_trait_change
-from traitsui.api import View, Item
-from mayavi.core.api import Engine
-from mayavi.core.ui.api import MayaviScene, MlabSceneModel, \
-        SceneEditor
-from tvtk.pyface.api import Scene
 import matplotlib
 matplotlib.use('Qt4Agg')
 
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
-
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas, NavigationToolbar2QT as NavigationToolbar
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 import scipy.io as sio
 import numpy as np
-################################################################################
-#The actual visualization
-class Visualization(HasTraits):
-    engine1 = Instance(Engine, args=())
-    scene = Instance(MlabSceneModel, ())
 
-    def _scene1_default(self):
-        " The default initializer for 'scene1' "
-        self.engine1.start()
-        scene1 = MlabSceneModel(engine=self.engine1)
-        return scene1
-
-    # @on_trait_change('scene.activated')
-    # def update_plot(self):
-    #     # This function is called when the view is opened. We don't
-    #     # populate the scene when the view is not yet open, as some
-    #     # VTK features require a GLContext.
-    #
-    #     # We can do normal mlab calls on the embedded scene.
-    #     self.scene.mlab.test_points3d()
-
-    # the layout of the dialog screated
-    view = View(Item('scene', editor=SceneEditor(scene_class=Scene),
-                     show_label=False),
-                resizable=True # We need this to resize with the parent widget
-                )
-
-################################################################################
-# The QWidget containing the plot.
-class MPLQWidget(FigureCanvas):
-    def __init__(self, parent=None):
-
-        # layout = QtGui.QVBoxLayout(self)
-        # layout.setContentsMargins(0,0,0,0)
-        # layout.setSpacing(0)
-        # generate the plot
-        fig = Figure( dpi=72, facecolor=(1,1,1), edgecolor=(0,0,0))
-        ax = fig.add_subplot(111)
-        ax.plot([0,1])
-        # generate the canvas to display the plot
-        FigureCanvas.__init__(self, fig)
-
-        # If you want to debug, beware that you need to remove the Qt
-        # input hook.
-        #QtCore.pyqtRemoveInputHook()
-        #import pdb ; pdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
-
-        # The edit_traits call will generate the widget to embed.
-        # self.ui = self.visualization.edit_traits(parent=self,
-        #                                          kind='subpanel').control
-        #layout.addWidget(self.canvas)
-        #self.ui.setParent(self)
-
-
-################################################################################
-# The QWidget containing the visualization, this is pure PyQt4 code.
-class MayaviQWidget(QtGui.QWidget):
-    def __init__(self, parent=None):
-        QtGui.QWidget.__init__(self, parent)
-        layout = QtGui.QVBoxLayout(self)
-        layout.setContentsMargins(0,0,0,0)
-        layout.setSpacing(0)
-        self.visualization = Visualization()
-
-        # If you want to debug, beware that you need to remove the Qt
-        # input hook.
-        #QtCore.pyqtRemoveInputHook()
-        #import pdb ; pdb.set_trace()
-        #QtCore.pyqtRestoreInputHook()
-
-        # The edit_traits call will generate the widget to embed.
-        self.ui = self.visualization.edit_traits(parent=self,
-                                                 kind='subpanel').control
-        layout.addWidget(self.ui)
-        self.ui.setParent(self)
-
-    def SetPoints(self,x = None, y = None, z = None, scalars = None):
-        #self.visualization.scene.clf()
-        if not hasattr(self, 'virtual_sensors_3D'):
-            self.virtual_sensors_3D = self.visualization.scene.mlab.points3d(x,y,z,scalars)
-            self.virtual_sensors_3D.glyph.glyph.scale_mode = 'data_scaling_off'
-            self.virtual_sensors_3D.glyph.scale_mode = 'data_scaling_off'
-            self.virtual_sensors_3D.glyph.glyph.scale_factor = 0.003
-            self.visualization.scene.reset_zoom()
-        else:
-            self.visualization.scene.disable_render = True
-            self.virtual_sensors_3D.mlab_source.reset(x = x, y = y,z = z,scalars = scalars)
-            self.virtual_sensors_3D.mlab_source.set(x = x, y = y,z = z,scalars = scalars)
-            self.visualization.scene.disable_render = False
-
-
-
-    def SetScalarsRange(self, min_value = 0.0, max_value = 1.0):
-        # Setup lut
-        self.virtual_sensors_3D.module_manager.scalar_lut_manager.use_default_range = False
-        self.virtual_sensors_3D.module_manager.scalar_lut_manager.lut._vtk_obj.SetTableRange(min_value, max_value)
-        self.virtual_sensors_3D.module_manager.scalar_lut_manager.lut_mode = 'magma'
-
-    def ToggleScalarBarVisibility(self, visible):
-        self.virtual_sensors_3D.module_manager.scalar_lut_manager.show_scalar_bar = True
-        self.virtual_sensors_3D.module_manager.scalar_lut_manager.show_legend = True
-
-    def SetScalars(self,scalars = None):
-        self.visualization.scene.disable_render = True
-        self.virtual_sensors_3D.mlab_source.set(scalars = scalars)
-        self.visualization.scene.disable_render = False
+from MPLQWidget import MPLQWidget
+from MayaviQWidget import MayaviQWidget
 
 ################################################################################
 # The QMainWindow
@@ -154,12 +52,24 @@ class MainWindow(QtGui.QMainWindow):
 
         if filename:
             mat_data = sio.loadmat(filename)
+            # Anatomy meshes
+            self.cortex_vertices = mat_data['cortex_vertices']
+            self.cortex_triangles = mat_data['cortex_triangles']-1
+            self.head_vertices = mat_data['head_vertices']
+            self.head_triangles = mat_data['head_triangles']-1
 
-            self.virtual_sensor_positions = mat_data['posVs']
+            # Simulated signal
+            self.virtual_sensor_positions = mat_data['posVS']
             self.time = mat_data['time']
             self.virtual_sensors_signals = mat_data.get('signalproj').T
-            self.correl = mat_data['correl']
+            self.correl = np.abs(mat_data['correl'])
 
+            # Dipole
+            self.dipole_position = mat_data['origDipolePos'][0]
+            self.dipole_momentum = mat_data['origDipoleMom'][0]/np.linalg.norm(mat_data['origDipoleMom'][0])
+
+            print(self.dipole_position)
+            print(self.dipole_momentum)
             print(self.virtual_sensors_signals.shape)
 
             self.time_slider.setRange(0, self.time.shape[1])
@@ -187,11 +97,22 @@ class MainWindow(QtGui.QMainWindow):
         layout = QtGui.QVBoxLayout(container) #QGridLayout(container)
 
         # Plot and scene
-        self.mpl_widget = MPLQWidget(self)
+        #scroll = QtGui.QScrollArea(self)
+        self.plot_widget = QtGui.QWidget()
+        self.mpl_widget = MPLQWidget(self) #InteractiveCanvas([0,1,2],[0,1,2],self)
+        self.mpl_toolbar = NavigationToolbar(self.mpl_widget, self.plot_widget)
+        #scroll.setWidget(self.mpl_widget)
+        #self.canvas.mpl_connect('key_press_event', self.on_key_press)
+
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.mpl_widget)  # the matplotlib canvas
+        vbox.addWidget(self.mpl_toolbar)
+        self.plot_widget.setLayout(vbox)
+
         self.mayavi_widget = MayaviQWidget(self)
 
         visualization_layout = QtGui.QSplitter(container)
-        visualization_layout.addWidget(self.mpl_widget)
+        visualization_layout.addWidget(self.plot_widget)
         visualization_layout.addWidget(self.mayavi_widget)
         layout.addWidget(visualization_layout)
 
@@ -201,14 +122,24 @@ class MainWindow(QtGui.QMainWindow):
         self.time_slider.setRange(0,1000)
         self.time_slider.setValue(0)
 
+        self.time_text = QtGui.QLineEdit()
+        self.time_text.setText('0')
+        self.time_text.editingFinished.connect(self._TimeTextChanged)
+
         self.correl_slider = QtGui.QSlider(self)
         self.correl_slider.setOrientation(QtCore.Qt.Horizontal)
         self.correl_slider.setRange(0,1000)
         self.correl_slider.setValue(0)
 
-        controls_layout = QtGui.QVBoxLayout(container)
-        controls_layout.addWidget(self.time_slider)
-        controls_layout.addWidget(self.correl_slider)
+        self.correl_text = QtGui.QLineEdit()
+        self.correl_text.setText('0')
+        self.correl_text.editingFinished.connect(self._CorrelTextChanged)
+
+        controls_layout = QtGui.QGridLayout(container)
+        controls_layout.addWidget(self.time_slider,0,0)
+        controls_layout.addWidget(self.time_text,0,1)
+        controls_layout.addWidget(self.correl_slider, 1,0)
+        controls_layout.addWidget(self.correl_text,1,1)
         layout.addLayout(controls_layout)
 
         #layout.addWidget(mayavi_widget, 1, 1)
@@ -219,15 +150,33 @@ class MainWindow(QtGui.QMainWindow):
         bar = self.menuBar()
 
         # File menu
-        file = bar.addMenu("File")
-        open = QtGui.QAction("Open",self,triggered=self._OpenMatFile)
-        open.setShortcut("Ctrl+O")
-        file.addAction(open)
+        file_menu = bar.addMenu('File')
+
+        open_action = QtGui.QAction('Open',self,triggered = self._OpenMatFile)
+        open_action.setShortcut('Ctrl+O')
+        file_menu.addAction(open_action)
+
+        # Visualization menuBar
+        visualization_menu = bar.addMenu('Visualization')
+
+        head_visual_action = QtGui.QAction('Head', self, triggered = self._ToggleHeadVisibility)
+        head_visual_action.setCheckable(True)
+        head_visual_action.setChecked(True)
+        visualization_menu.addAction(head_visual_action)
+
+        cortex_visual_action = QtGui.QAction('Cortex', self, triggered = self._ToggleCortexVisibility)
+        cortex_visual_action.setCheckable(True)
+        cortex_visual_action.setChecked(True)
+        visualization_menu.addAction(cortex_visual_action)
+
+        dipole_visual_action = QtGui.QAction('Dipole',self, triggered = self._ToggleDipoleVisibility)
+        dipole_visual_action.setCheckable(True)
+        dipole_visual_action.setChecked(True)
+        visualization_menu.addAction(dipole_visual_action)
 
     def _BuildScene(self):
         selected_correl_value = self.correl.min()
         self.selected_ids = np.ravel_multi_index(np.where(self.correl>=selected_correl_value), self.correl.shape)
-        # print(self.virtual_sensors_signals[self.time_slider.value(),self.selected_ids].shape)
         self.mayavi_widget.SetPoints(self.virtual_sensor_positions[:,0],
                                      self.virtual_sensor_positions[:,1],
                                      self.virtual_sensor_positions[:,2],
@@ -236,25 +185,61 @@ class MainWindow(QtGui.QMainWindow):
         self.mayavi_widget.SetScalarsRange(self.virtual_sensors_signals.min(),self.virtual_sensors_signals.max())
         self.mayavi_widget.ToggleScalarBarVisibility(True)
 
+        self.mayavi_widget.AddCortex(self.cortex_vertices, self.cortex_triangles)
+        self.mayavi_widget.AddHead(self.head_vertices, self.head_triangles)
+
+        self.mayavi_widget.AddDipole(self.dipole_position, self.dipole_momentum)
+
     def _BuildPlot(self):
-        print('Build plot')
+        self.mpl_widget.SetSignals(self.virtual_sensors_signals[:,self.selected_ids], self.time_slider.value())
 
     def _TimeChanged(self, value):
-        # print(self.selected_ids.shape)
-        # print(value)
-        # print(self.virtual_sensors_signals[value,self.selected_ids].shape)
         self.mayavi_widget.SetScalars(self.virtual_sensors_signals[value,self.selected_ids])
-        print('---------------')
+        self.mpl_widget.SetTimeIndex(value)
+        self.time_text.setText(str(value))
     def _CorrelChanged(self, value):
         selected_correl_value = self.correl.min()+((self.correl.max()-self.correl.min())*float(value)/(self.correl.shape[1]-1))
         self.selected_ids = np.ravel_multi_index(np.where(self.correl>=selected_correl_value), self.correl.shape)
-        # print(self.selected_ids.shape)
-        # print(self.virtual_sensors_signals[self.time_slider.value(),self.selected_ids].shape)
+
+        # Update 3D scene
         self.mayavi_widget.SetPoints(self.virtual_sensor_positions[self.selected_ids,0],
                                      self.virtual_sensor_positions[self.selected_ids,1],
                                      self.virtual_sensor_positions[self.selected_ids,2],
                                      self.virtual_sensors_signals[self.time_slider.value(),self.selected_ids])
-        # print('-------------------')
+        # Update signal Plot
+        self.mpl_widget.SetSignals(self.virtual_sensors_signals[:,self.selected_ids],time_index = self.time_slider.value())
+
+        self.correl_text.setText(str(value))
+    def _TimeTextChanged(self):
+        value = int(self.time_text.text())
+        self.time_slider.setValue(value)
+        self.mayavi_widget.SetScalars(self.virtual_sensors_signals[value,self.selected_ids])
+        self.mpl_widget.SetTimeIndex(value)
+
+    def _CorrelTextChanged(self):
+        value = int(self.correl_text.text())
+        self.correl_slider.setValue(value)
+
+        selected_correl_value = self.correl.min()+((self.correl.max()-self.correl.min())*float(value)/(self.correl.shape[1]-1))
+        self.selected_ids = np.ravel_multi_index(np.where(self.correl>=selected_correl_value), self.correl.shape)
+
+        # Update 3D scene
+        self.mayavi_widget.SetPoints(self.virtual_sensor_positions[self.selected_ids,0],
+                                     self.virtual_sensor_positions[self.selected_ids,1],
+                                     self.virtual_sensor_positions[self.selected_ids,2],
+                                     self.virtual_sensors_signals[self.time_slider.value(),self.selected_ids])
+        # Update signal Plot
+        self.mpl_widget.SetSignals(self.virtual_sensors_signals[:,self.selected_ids],time_index = self.time_slider.value())
+
+    def _ToggleHeadVisibility(self, is_checked):
+        self.mayavi_widget.ToggleHeadVisibility(is_checked)
+
+    def _ToggleCortexVisibility(self, is_checked):
+        self.mayavi_widget.ToggleCortexVisibility(is_checked)
+
+    def _ToggleDipoleVisibility(self, is_checked):
+        self.mayavi_widget.ToggleDipoleVisibility(is_checked)
+
 if __name__ == "__main__":
     # Don't create a new QApplication, it would unhook the Events
     # set by Traits on the existing QApplication. Simply use the
