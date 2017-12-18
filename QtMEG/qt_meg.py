@@ -127,12 +127,7 @@ class MainWindow(QtGui.QMainWindow):
         self.correl_slider.setOrientation(QtCore.Qt.Horizontal)
         self.correl_slider.setRange(0,1000)
         self.correl_slider.setValue(0)
-<<<<<<< HEAD
 
-=======
-        self.correl_slider.setEnabled(False)
-
->>>>>>> c726868a10686bacf66677581a7516e68f637152
         self.correl_text = QtGui.QLineEdit()
         self.correl_text.setText('0')
         self.correl_text.editingFinished.connect(self._CorrelTextChanged)
