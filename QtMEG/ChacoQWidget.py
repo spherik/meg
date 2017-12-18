@@ -89,13 +89,13 @@ class Visualization(HasTraits):
 
         # Add zoom tool
         multi_line_plot_renderer.overlays.append(ZoomTool(multi_line_plot_renderer, tool_mode="range", always_on=False,
-                                                            x_max_zoom_factor = 10.0, y_max_zoom_factor = 10.0,
+                                                            x_max_zoom_factor = 20.0, y_max_zoom_factor = 20.0,
                                                             x_min_zoom_factor = 1.0, y_min_zoom_factor = 1.0,
                                                             zoom_to_mouse = True))
         #multi_line_plot_renderer.overlays.append(LineInspector(multi_line_plot_renderer, axis="index",write_metadata=True,is_listener=True))
-        multi_line_plot_renderer.overlays.append(LineInspector(multi_line_plot_renderer, axis='value',
-                                                write_metadata=True,
-                                                is_listener=True))
+        # multi_line_plot_renderer.overlays.append(LineInspector(multi_line_plot_renderer, axis='value',
+        #                                         write_metadata=True,
+        #                                         is_listener=True))
         multi_line_plot_renderer.overlays.append(LineInspector(multi_line_plot_renderer, axis="index",
                                                 write_metadata=True,
                                                 is_listener=True))
@@ -175,8 +175,8 @@ class Visualization(HasTraits):
         plot.index = self.signals_renderer.index
         plot.overlays.append(LineInspector(plot, write_metadata=True,
                                   is_listener=True))
-        plot.overlays.append(LineInspector(plot, axis="value",
-                                  is_listener=True))
+        # plot.overlays.append(LineInspector(plot, axis="value",
+        #                           is_listener=True))
 
         plot.origin_axis_visible = False
         plot.padding_top = 0
@@ -187,8 +187,6 @@ class Visualization(HasTraits):
         plot.bgcolor = "white"
         plot.use_downsampling = True
         return plot
-
-
 
     def _signals_data_model_changed(self, old, new):
         print('model_changed')
@@ -205,20 +203,30 @@ class Visualization(HasTraits):
         print('ds')
         ds = MultiArrayDataSource(data=self.signals_data_model.data)
 
-        self.signals_renderer.set(index = xs, yindex = ys,# index_mapper = LinearMapper(range=xrange), value_mapper = LinearMapper(range=yrange),
+        self.signals_renderer.set(index = xs, yindex = ys,
+                                #index_mapper = LinearMapper(range=xrange), value_mapper = LinearMapper(range=yrange),
                                 value=ds,
                                 global_max = self.signals_data_model.data.max(),
                                 global_min = self.signals_data_model.data.min())
         self.signals_renderer.index_mapper.range = xrange
         self.signals_renderer.value_mapper.range = yrange
+        self.signals_renderer.request_redraw()
 
     def _dipole_data_model_changed(self, old, new):
         print('dipole_data_model_changed')
-        self.dipole_plot.index_range = self.signals_renderer.index_range
+        #self.dipole_plot.index_range = self.signals_renderer.index_range
         #self.dipole_plot.index = self.signals_renderer.index
+        print(dir(self.dipole_data_model.x_index))
+        xs = ArrayDataSource(self.dipole_data_model.x_index, sort_order='ascending')
+        xrange = DataRange1D()
+        xrange.add(xs)
 
         self.dipole_plot.index.set_data(self.dipole_data_model.x_index)
         self.dipole_plot.value.set_data(self.dipole_data_model.data)
+
+        self.dipole_plot.index_mapper.range = xrange
+
+        self.dipole_plot.request_redraw()
 
     # def _time_default(self):
     #     numpoints = 1000.0
