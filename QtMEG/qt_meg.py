@@ -23,12 +23,6 @@ from pyface.qt import QtGui, QtCore
 #   import sip
 #   sip.setapi('QString', 2)
 
-import matplotlib
-matplotlib.use('Qt4Agg')
-
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas, NavigationToolbar2QT as NavigationToolbar
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
 import scipy.io as sio
 import numpy as np
 
