@@ -34,7 +34,7 @@ import numpy as np
 
 from MPLQWidget import MPLQWidget
 from MayaviQWidget import MayaviQWidget
-
+from ChacoQWidget import ChacoQWidget
 ################################################################################
 # The QMainWindow
 class MainWindow(QtGui.QMainWindow):
@@ -60,19 +60,20 @@ class MainWindow(QtGui.QMainWindow):
 
             # Simulated signal
             self.virtual_sensor_positions = mat_data['posVS']
-            self.time = mat_data['time']
-            self.virtual_sensors_signals = mat_data.get('signalproj').T
+            self.time = mat_data['time'][0,:]
+            self.virtual_sensors_signals = mat_data['signalproj']
             self.correl = np.abs(mat_data['correl'])
 
             # Dipole
             self.dipole_position = mat_data['origDipolePos'][0]
             self.dipole_momentum = mat_data['origDipoleMom'][0]/np.linalg.norm(mat_data['origDipoleMom'][0])
+            self.dipole_signal = mat_data['dipSignal'][0]
 
             print(self.dipole_position)
             print(self.dipole_momentum)
             print(self.virtual_sensors_signals.shape)
 
-            self.time_slider.setRange(0, self.time.shape[1])
+            self.time_slider.setRange(0, self.time.shape[0])
             self.time_slider.setSingleStep(1)
             self.time_slider.setTickInterval(10)
             self.time_slider.setTickPosition(QtGui.QSlider.TicksBelow)
@@ -88,25 +89,19 @@ class MainWindow(QtGui.QMainWindow):
             self._BuildScene()
             self._BuildPlot()
 
-            # print(self.time.shape)
-
     def _BuildLayout(self):
         container = QtGui.QWidget()
-        container.setWindowTitle("Embedding Mayavi in a PyQt4 Application")
+        container.setWindowTitle("Brain signal visualizer")
         # define a "complex" layout to test the behaviour
         layout = QtGui.QVBoxLayout(container) #QGridLayout(container)
 
         # Plot and scene
         #scroll = QtGui.QScrollArea(self)
         self.plot_widget = QtGui.QWidget()
-        self.mpl_widget = MPLQWidget(self) #InteractiveCanvas([0,1,2],[0,1,2],self)
-        self.mpl_toolbar = NavigationToolbar(self.mpl_widget, self.plot_widget)
-        #scroll.setWidget(self.mpl_widget)
-        #self.canvas.mpl_connect('key_press_event', self.on_key_press)
+        self.mpl_widget = ChacoQWidget(self)
 
         vbox = QtGui.QVBoxLayout()
-        vbox.addWidget(self.mpl_widget)  # the matplotlib canvas
-        vbox.addWidget(self.mpl_toolbar)
+        vbox.addWidget(self.mpl_widget)  # the chaco canvas
         self.plot_widget.setLayout(vbox)
 
         self.mayavi_widget = MayaviQWidget(self)
@@ -130,7 +125,7 @@ class MainWindow(QtGui.QMainWindow):
         self.correl_slider.setOrientation(QtCore.Qt.Horizontal)
         self.correl_slider.setRange(0,1000)
         self.correl_slider.setValue(0)
-
+        
         self.correl_text = QtGui.QLineEdit()
         self.correl_text.setText('0')
         self.correl_text.editingFinished.connect(self._CorrelTextChanged)
@@ -138,7 +133,7 @@ class MainWindow(QtGui.QMainWindow):
         controls_layout = QtGui.QGridLayout(container)
         controls_layout.addWidget(self.time_slider,0,0)
         controls_layout.addWidget(self.time_text,0,1)
-        controls_layout.addWidget(self.correl_slider, 1,0)
+        controls_layout.addWidget(self.correl_slider,1,0)
         controls_layout.addWidget(self.correl_text,1,1)
         layout.addLayout(controls_layout)
 
@@ -180,7 +175,7 @@ class MainWindow(QtGui.QMainWindow):
         self.mayavi_widget.SetPoints(self.virtual_sensor_positions[:,0],
                                      self.virtual_sensor_positions[:,1],
                                      self.virtual_sensor_positions[:,2],
-                                     self.virtual_sensors_signals[self.time_slider.value(),self.selected_ids])
+                                     self.virtual_sensors_signals[self.time_slider.value()-1,self.selected_ids])
 
         self.mayavi_widget.SetScalarsRange(self.virtual_sensors_signals.min(),self.virtual_sensors_signals.max())
         self.mayavi_widget.ToggleScalarBarVisibility(True)
@@ -191,12 +186,14 @@ class MainWindow(QtGui.QMainWindow):
         self.mayavi_widget.AddDipole(self.dipole_position, self.dipole_momentum)
 
     def _BuildPlot(self):
-        self.mpl_widget.SetSignals(self.virtual_sensors_signals[:,self.selected_ids], self.time_slider.value())
+        self.mpl_widget.SetDipoleSignal(self.time,self.dipole_signal)
+        self.mpl_widget.SetSignals(self.time, self.virtual_sensors_signals[self.selected_ids,:], self.time_slider.value()-1)
 
     def _TimeChanged(self, value):
-        self.mayavi_widget.SetScalars(self.virtual_sensors_signals[value,self.selected_ids])
+        self.mayavi_widget.SetScalars(self.virtual_sensors_signals[self.selected_ids,value])
         self.mpl_widget.SetTimeIndex(value)
         self.time_text.setText(str(value))
+
     def _CorrelChanged(self, value):
         selected_correl_value = self.correl.min()+((self.correl.max()-self.correl.min())*float(value)/(self.correl.shape[1]-1))
         self.selected_ids = np.ravel_multi_index(np.where(self.correl>=selected_correl_value), self.correl.shape)
@@ -205,15 +202,16 @@ class MainWindow(QtGui.QMainWindow):
         self.mayavi_widget.SetPoints(self.virtual_sensor_positions[self.selected_ids,0],
                                      self.virtual_sensor_positions[self.selected_ids,1],
                                      self.virtual_sensor_positions[self.selected_ids,2],
-                                     self.virtual_sensors_signals[self.time_slider.value(),self.selected_ids])
+                                     self.virtual_sensors_signals[self.selected_ids,self.time_slider.value()-1])
         # Update signal Plot
-        self.mpl_widget.SetSignals(self.virtual_sensors_signals[:,self.selected_ids],time_index = self.time_slider.value())
+        self.mpl_widget.SetSignals(self.time,self.virtual_sensors_signals[self.selected_ids,:],time_index = self.time_slider.value()-1)
 
         self.correl_text.setText(str(value))
+
     def _TimeTextChanged(self):
         value = int(self.time_text.text())
         self.time_slider.setValue(value)
-        self.mayavi_widget.SetScalars(self.virtual_sensors_signals[value,self.selected_ids])
+        self.mayavi_widget.SetScalars(self.virtual_sensors_signals[self.selected_ids,value])
         self.mpl_widget.SetTimeIndex(value)
 
     def _CorrelTextChanged(self):
@@ -227,9 +225,9 @@ class MainWindow(QtGui.QMainWindow):
         self.mayavi_widget.SetPoints(self.virtual_sensor_positions[self.selected_ids,0],
                                      self.virtual_sensor_positions[self.selected_ids,1],
                                      self.virtual_sensor_positions[self.selected_ids,2],
-                                     self.virtual_sensors_signals[self.time_slider.value(),self.selected_ids])
+                                     self.virtual_sensors_signals[self.selected_ids,self.time_slider.value()-1])
         # Update signal Plot
-        self.mpl_widget.SetSignals(self.virtual_sensors_signals[:,self.selected_ids],time_index = self.time_slider.value())
+        self.mpl_widget.SetSignals(self.virtual_sensors_signals[self.selected_ids,:], time_index = self.time_slider.value()-1)
 
     def _ToggleHeadVisibility(self, is_checked):
         self.mayavi_widget.ToggleHeadVisibility(is_checked)
